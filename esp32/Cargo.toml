@@ -4,20 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-esp-hal = "1.0"
-esp-idf-hal = "0.42"
-esp-idf-svc = "0.48"
-esp-idf-sys = "0.34"
-embedded-hal = "0.2"
-embedded-svc = "0.29"
-smoltcp = "0.11"
-futures-util = "0.3"
-esp_println = "0.13"
-
+esp-idf-hal = "0.44"
+esp-idf-svc = "0.49"
+esp-idf-sys = "0.35"
 log = "0.4"
+
+[build]
+target = "riscv32imc-esp-espidf"
 
 [profile.release]
 opt-level = "z"
 lto = true
-codegen-units = 1
-panic = "abort"

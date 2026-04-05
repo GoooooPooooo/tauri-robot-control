@@ -1,8 +1,6 @@
-{
-    "build.target": "riscv32imc-esp-espidf",
-    "rustflags": ["-C", "default-linker-librss"],
-    "server": {
-        "address": "192.168.1.100",
-        "port": 8080
-    }
-}
+[build]
+target = "xtensa-esp32-none-elf"
+
+[target.xtensa-esp32-none-elf]
+runner = "espflash"
+rustflags = ["-C", "link-arg=-nostartfiles"]

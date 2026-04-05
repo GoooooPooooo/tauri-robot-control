@@ -1,163 +1,99 @@
 # ESP32 Robot Car Controller (Rust)
 
-Прошивка для ESP32 на языке Rust для управления роботом-машинкой.
+## Текущий статус
 
-## Схема подключения
+Проект настроен для сборки с esp-idf. Для полной сборки требуется:
+1. ESP-IDF framework
+2. Правильная настройка toolchain
 
-```
-ESP32          L298N Motor Driver
--------        ------------------
-GPIO 5   ----> ENA (PWM Left Motor)
-GPIO 17  ----> IN1
-GPIO 18  ----> IN2
-GPIO 19  ----> IN3
-GPIO 21  ----> IN4
-GPIO 22  ----> ENB (PWM Right Motor)
+## Быстрый старт с Arduino
 
-L298N         Motors
-----         ------
-OUT1      ----> Left Motor +
-OUT2      ----> Left Motor -
-OUT3      ----> Right Motor +
-OUT4      ----> Right Motor -
+Если установка ESP-IDF вызывает сложности, используйте Arduino IDE:
 
-L298N         Power
-----         -----
-12V      ----> LiPo Battery (+)
-GND      ----> Battery (-), ESP32 GND
+### 1. Установка Arduino IDE
+```bash
+# Скачайте с https://www.arduino.cc/en/software
 ```
 
-## Установка Rust для ESP32
+### 2. Добавление поддержки ESP32
+1. Arduino IDE → Файл → Настройки
+2. Добавьте URL:
+   ```
+   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+   ```
+3. Инструменты → Плата → Менеджер плат → установите "ESP32"
 
-### 1. Установите Rust
+### 3. Загрузите код
+Скопируйте содержимое папки `arduino/` в Arduino IDE и загрузите.
+
+## Установка ESP-IDF (для сборки на Rust)
+
+### Автоматическая установка
 ```powershell
-irm https://sh.rustup.rs | iex
-```
-
-### 2. Добавьте поддержку ESP32
-```powershell
-rustup install esp
-rustup default esp
-```
-
-### 3. Установите espup
-```powershell
+# Установите espup
 cargo install espup
+
+# Установите esp-idf
 espup install
+
+# Перезапустите терминал
+
+# Проверьте
+$env:ESP_IDF_PATH = "$env:USERPROFILE\.espressif\esp-idf\v5.3"
 ```
 
-### 4. Настройте переменные окружения (Windows)
-```powershell
-$env:ESPPORT = "COM3"  # Замените на ваш порт
-$env:ESP_IDF_PATH = "$env:USERPROFILE\.espressif"
-```
+### Ручная установка
+1. Скачайте: https://dl.espressif.com/dl/esp-idf-installer/esp-idf-installer-latest.exe
+2. Установите в `C:\Users\igore\esp-idf`
+3. Обновите `C:\Users\igore\export-esp.ps1`:
+   ```powershell
+   $Env:ESP_IDF_PATH = "C:\Users\igore\esp-idf\esp-idf"
+   ```
 
-## Настройка проекта
-
-### 1. Установите зависимости
-```bash
-cd esp32
-cargo install espup
-espup install --espressif
-```
-
-### 2. Настройте WiFi и IP сервера
-Создайте файл `.env` или установите переменные окружения:
-
-```bash
-export WIFI_SSID="YourWiFiName"
-export WIFI_PASSWORD="YourWiFiPassword"  
-export SERVER_IP="192.168.1.100"
-```
-
-Или отредактируйте `src/main.rs` напрямую:
-```rust
-const WIFI_SSID: &str = "YourWiFiName";
-const WIFI_PASSWORD: &str = "YourWiFiPassword";
-const SERVER_IP: &str = "192.168.1.100";
-```
-
-### 3. Как узнать IP вашего ПК
-```cmd
-ipconfig
-```
-Найдите IPv4 адрес (например, 192.168.1.100)
-
-## Сборка и загрузка
-
-### Подключите ESP32 по USB
-
-### Сборка
-```bash
-cargo build --release
-```
-
-### Загрузка
-```bash
-cargo run --release
-```
-
-Или с esptool:
-```bash
-esptool.py --chip esp32 --port COM3 --baud 921600 write_flash 0x1000 target/riscv32imc-esp-espidf/release/esp32-robot-car.bin
-```
-
-## Использование Docker (альтернатива)
-
-Если у вас есть Docker, можете использовать контейнер с уже настроенным окружением:
-
-```bash
-docker run --rm -v $PWD:/project -w /project -it --device /dev/ttyUSB0 espressif/idf-rust:latest
-```
-
-## Структура кода
+## Структура проекта
 
 ```
 esp32/
 ├── src/
-│   └── main.rs          # Основной код
-├── Cargo.toml           # Зависимости
-├── build.rs             # Скрипт сборки
+│   └── main.rs        # Основной код (Rust)
+├── Cargo.toml          # Зависимости
+├── build.rs           # Скрипт сборки
 ├── .cargo/
-│   └── config.toml      # Конфигурация Rust для ESP
-└── README.md            # Этот файл
+│   └── config.toml    # Конфигурация
+├── arduino/           # Arduino версия (для сравнения)
+│   └── robot_car/
+│       └── robot_car.ino
+└── README.md
 ```
 
-## Работа с PlatformIO
+## Пины подключения
 
-Если предпочитаете PlatformIO:
-
-1. Установите VS Code + PlatformIO extension
-2. Создайте проект: PlatformIO → New Project
-3. Выберите: Board → ESP32, Framework → esp-idf
-4. Скопируйте `Cargo.toml` и `src/main.rs`
-5. Настройте `platformio.ini`:
-```ini
-[env:esp32dev]
-platform = espressif32
-board = esp32dev
-framework = espidf
+```
+ESP32          L298N
+-------        ------
+GPIO 5   -->  ENA
+GPIO 17  -->  IN1
+GPIO 18  -->  IN2
+GPIO 19  -->  IN3
+GPIO 21  -->  IN4
+GPIO 22  -->  ENB
+GND      -->  GND (общий с батареей)
 ```
 
-## Возможные проблемы
+## Конфигурация WiFi
 
-### WiFi не подключается
-- Проверьте имя и пароль сети
-- Убедитесь, что WiFi 2.4GHz
-
-### Не загружается на ESP32
-- Проверьте драйвер USB-UART
-- Выберите правильный COM порт
-
-### Ошибки компиляции
-```bash
-# Обновите espup
-cargo install espup
-espup install
+В `src/main.rs` измените:
+```rust
+const WIFI_SSID: &str = "ваша_сеть";
+const WIFI_PASSWORD: &str = "ваш_пароль";
+const SERVER_IP: &str = "192.168.50.19";
 ```
 
-## Ресурсы
+## Сборка
 
-- [esp-rs книга](https://esp-rs.github.io/book/)
-- [esp-hal документация](https://docs.rs/esp-hal/latest/esp_hal/)
-- [Rust для ESP32 учебник](https://esp-rs.github.io/no_std-training/)
+После установки ESP-IDF:
+```powershell
+cd C:\projects\tauri-app\esp32
+. C:\Users\igore\export-esp.ps1
+cargo build
+```
