@@ -1,6 +1,0 @@
-[build]
-target = "xtensa-esp32-none-elf"
-
-[target.xtensa-esp32-none-elf]
-runner = "espflash"
-rustflags = ["-C", "link-arg=-nostartfiles"]

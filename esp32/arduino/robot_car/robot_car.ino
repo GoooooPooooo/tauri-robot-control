@@ -1,62 +1,89 @@
-// ESP32 Robot Car Controller
-// Подключается к WiFi и опрашивает сервер за командами
-
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-// ========== НАСТРОЙКИ ==========
-// IP адрес вашего ПК (запустите ipconfig и найдите IPv4)
-const char* SERVER_IP = "192.168.50.19";  // ИЗМЕНИТЕ НА IP ВАШЕГО ПК
+const char* ssid = "star_room";
+const char* password = "08121955fF";
+const char* serverIP = "192.168.50.19";
+const int serverPort = 8080;
 
-// WiFi настройки
-const char* WIFI_SSID = "ваша_сеть";      // ИМЯ СЕТИ
-const char* WIFI_PASSWORD = "ваш_пароль";  // ПАРОЛЬ
+const int ENA = 25;
+const int ENB = 33;
+const int IN1 = 26;
+const int IN2 = 27;
+const int IN3 = 14;
+const int IN4 = 12;
 
-// Пин управления двигателями (L298N)
-#define ENA 5   // PWM левый двигатель
-#define IN1 17  // Направление левый
-#define IN2 18  // Направление левый
-#define IN3 19  // Направление правый
-#define IN4 21  // Направление правый
-#define ENB 22  // PWM правый двигатель
+void stopMotors() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
 
-// Скорость двигателей (0-255)
-#define MOTOR_SPEED 150
+void forward() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
 
-// URL сервера
-String SERVER_URL;
+void backward() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
 
-// Интервал опроса (мс)
-#define POLL_INTERVAL 100
+void turnLeft() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
 
-// =================================
+void turnRight() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
 
-HTTPClient http;
-unsigned long lastPoll = 0;
-String lastCommand = "STOP";
+String getCommand() {
+  WiFiClient client;
+  HTTPClient http;
+  
+  String url = "http://" + String(serverIP) + ":" + String(serverPort) + "/command";
+  http.begin(client, url);
+  
+  int httpCode = http.GET();
+  
+  if (httpCode > 0) {
+    String response = http.getString();
+    http.end();
+    client.stop();
+    return response;
+  }
+  
+  http.end();
+  client.stop();
+  return "STOP";
+}
 
 void setup() {
   Serial.begin(115200);
   
-  // Настройка пинов двигателей
   pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
-  pinMode(ENB, OUTPUT);
   
-  // Остановить двигатели
-  stopMotors();
+  digitalWrite(ENA, HIGH);
+  digitalWrite(ENB, HIGH);
   
-  Serial.println();
-  Serial.println("========================================");
-  Serial.println("  Robot Car ESP32 Controller");
-  Serial.println("========================================");
-  
-  // Подключение к WiFi
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi");
+  Serial.print("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
   
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 30) {
@@ -66,131 +93,36 @@ void setup() {
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println();
-    Serial.println("WiFi Connected!");
-    Serial.print("ESP32 IP: ");
+    Serial.println("\nWiFi connected!");
+    Serial.print("IP: ");
     Serial.println(WiFi.localIP());
-    
-    // Формируем URL сервера
-    SERVER_URL = String("http://") + SERVER_IP + ":8080/command";
-    Serial.print("Server URL: ");
-    Serial.println(SERVER_URL);
   } else {
-    Serial.println();
-    Serial.println("WiFi FAILED! Retrying...");
+    Serial.println("\nWiFi connection failed!");
   }
-  
-  Serial.println("========================================");
-  Serial.println("Starting motor control loop...");
-  Serial.println("========================================");
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
-  
-  // Опрос сервера каждые POLL_INTERVAL мс
-  if (currentMillis - lastPoll >= POLL_INTERVAL) {
-    lastPoll = currentMillis;
-    pollServer();
-  }
-}
-
-void pollServer() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi disconnected! Reconnecting...");
+  if (WiFi.status() == WL_CONNECTED) {
+    String command = getCommand();
+    command.trim();
+    
+    if (command == "FORWARD") {
+      forward();
+    } else if (command == "BACKWARD") {
+      backward();
+    } else if (command == "LEFT") {
+      turnLeft();
+    } else if (command == "RIGHT") {
+      turnRight();
+    } else {
+      stopMotors();
+    }
+  } else {
+    stopMotors();
+    Serial.println("WiFi disconnected, reconnecting...");
     WiFi.reconnect();
     delay(1000);
-    return;
   }
   
-  http.begin(SERVER_URL);
-  http.setTimeout(1000);
-  
-  int httpCode = http.GET();
-  
-  if (httpCode == 200) {
-    String payload = http.getString();
-    payload.trim();
-    payload.replace("\n", "");
-    payload.replace("\r", "");
-    
-    if (payload.length() > 0 && payload != lastCommand) {
-      lastCommand = payload;
-      executeCommand(payload);
-    }
-  } else if (httpCode == -1) {
-    // Ошибка подключения
-    Serial.println("Connection error - server may not be running");
-  } else {
-    Serial.print("HTTP Error: ");
-    Serial.println(httpCode);
-  }
-  
-  http.end();
-}
-
-void executeCommand(String cmd) {
-  Serial.print("Command: ");
-  Serial.println(cmd);
-  
-  if (cmd == "FORWARD") {
-    moveForward();
-  } else if (cmd == "BACKWARD") {
-    moveBackward();
-  } else if (cmd == "LEFT") {
-    turnLeft();
-  } else if (cmd == "RIGHT") {
-    turnRight();
-  } else if (cmd == "STOP") {
-    stopMotors();
-  } else {
-    Serial.print("Unknown command: ");
-    Serial.println(cmd);
-    stopMotors();
-  }
-}
-
-void moveForward() {
-  analogWrite(ENA, MOTOR_SPEED);
-  analogWrite(ENB, MOTOR_SPEED);
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-
-void moveBackward() {
-  analogWrite(ENA, MOTOR_SPEED);
-  analogWrite(ENB, MOTOR_SPEED);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-}
-
-void turnLeft() {
-  analogWrite(ENA, MOTOR_SPEED / 2);
-  analogWrite(ENB, MOTOR_SPEED);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-
-void turnRight() {
-  analogWrite(ENA, MOTOR_SPEED);
-  analogWrite(ENB, MOTOR_SPEED / 2);
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-}
-
-void stopMotors() {
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENA, 0);
-  analogWrite(ENB, 0);
+  delay(100);
 }

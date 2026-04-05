@@ -1,0 +1,15 @@
+[package]
+name = "esp-robot-idf"
+edition = "2021"
+rust-version = "1.71"
+version = "0.1.0"
+
+[dependencies]
+esp-idf-sys = "0.37"
+esp-idf-svc = "0.52"
+anyhow = "1.0"
+log = "0.4"
+
+[profile.release]
+opt-level = "s"
+lto = true
