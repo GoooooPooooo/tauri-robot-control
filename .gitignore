@@ -3,12 +3,14 @@ dist/
 target/
 src-tauri/target/
 src-tauri/icons/
+esp32/target/
+esp32/.env
 *.ico
 *.png
 *.icns
 .DS_Store
 *.log
-*.lock
+Cargo.lock
 package-lock.json
 yarn.lock
 pnpm-lock.yaml

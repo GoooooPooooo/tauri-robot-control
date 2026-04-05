@@ -1,4 +1,6 @@
-# ESP32 Robot Car Controller
+# ESP32 Robot Car Controller (Rust)
+
+Прошивка для ESP32 на языке Rust для управления роботом-машинкой.
 
 ## Схема подключения
 
@@ -21,165 +23,141 @@ OUT4      ----> Right Motor -
 
 L298N         Power
 ----         -----
-12V      ----> LiPo Battery (+)  (3S 11.1V)
+12V      ----> LiPo Battery (+)
 GND      ----> Battery (-), ESP32 GND
-5V       ----> (не используется, или для питания ESP32)
 ```
 
-## Установка Arduino IDE для ESP32
+## Установка Rust для ESP32
 
-### Шаг 1: Скачайте Arduino IDE
-1. Скачайте с https://www.arduino.cc/en/software
-2. Установите
-
-### Шаг 2: Добавьте поддержку ESP32
-1. Откройте Arduino IDE
-2. Файл → Настройки
-3. В поле "Дополнительные ссылки для менеджера плат" добавьте:
-   ```
-   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-   ```
-4. Нажмите ОК
-5. Инструменты → Плата → Менеджер плат
-6. Найдите "ESP32" и установите
-
-### Шаг 3: Выберите плату
-1. Инструменты → Плата → ESP32 Arduino → "ESP32 Dev Module"
-
-## Прошивка ESP32
-
-### Шаг 1: Настройте код
-Откройте `robot_car.ino` и измените:
-
-```cpp
-// IP адрес вашего ПК в локальной сети
-const char* PC_IP = "192.168.1.100";  // ← ИЗМЕНИТЕ!
-
-// WiFi настройки
-const char* WIFI_SSID = "YOUR_WIFI_SSID";      // ← ИМЯ ВАШЕЙ СЕТИ
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD"; // ← ПАРОЛЬ СЕТИ
+### 1. Установите Rust
+```powershell
+irm https://sh.rustup.rs | iex
 ```
 
-**Как узнать IP вашего ПК:**
-1. Откройте командную строку (Win + R, введите `cmd`)
-2. Введите `ipconfig`
-3. Найдите "IPv4-адрес" (например, 192.168.1.100)
+### 2. Добавьте поддержку ESP32
+```powershell
+rustup install esp
+rustup default esp
+```
 
-### Шаг 2: Подключите ESP32
-1. Подключите ESP32 к компьютеру через USB
-2. Выберите порт: Инструменты → Порт → COMX (где X - номер порта)
+### 3. Установите espup
+```powershell
+cargo install espup
+espup install
+```
 
-### Шаг 3: Загрузите код
-1. Откройте `robot_car.ino` в Arduino IDE
-2. Нажмите кнопку "Загрузить" (стрелка вправо →)
-3. Дождитесь надписи "Загрузка завершена"
+### 4. Настройте переменные окружения (Windows)
+```powershell
+$env:ESPPORT = "COM3"  # Замените на ваш порт
+$env:ESP_IDF_PATH = "$env:USERPROFILE\.espressif"
+```
 
-### Шаг 4: Проверьте в Serial Monitor
-1. Инструменты → Serial Monitor (или Ctrl+Shift+M)
-2. Установите скорость 115200
-3. Вы должны увидеть:
-   ```
-   ========================================
-     Robot Car ESP32 Controller
-   ========================================
-   Connecting to WiFi...
-   WiFi Connected!
-   ESP32 IP: 192.168.1.101
-   ========================================
-   ```
+## Настройка проекта
 
-## Запуск сервера на ПК
+### 1. Установите зависимости
+```bash
+cd esp32
+cargo install espup
+espup install --espressif
+```
 
-### Шаг 1: Узнайте IP вашего ПК
+### 2. Настройте WiFi и IP сервера
+Создайте файл `.env` или установите переменные окружения:
+
+```bash
+export WIFI_SSID="YourWiFiName"
+export WIFI_PASSWORD="YourWiFiPassword"  
+export SERVER_IP="192.168.1.100"
+```
+
+Или отредактируйте `src/main.rs` напрямую:
+```rust
+const WIFI_SSID: &str = "YourWiFiName";
+const WIFI_PASSWORD: &str = "YourWiFiPassword";
+const SERVER_IP: &str = "192.168.1.100";
+```
+
+### 3. Как узнать IP вашего ПК
 ```cmd
 ipconfig
 ```
 Найдите IPv4 адрес (например, 192.168.1.100)
 
-### Шаг 2: Обновите IP в коде ESP32
-Измените `PC_IP` на IP вашего ПК и перепрошейте.
+## Сборка и загрузка
 
-### Шаг 3: Запустите приложение
-```powershell
-cd C:\projects\tauri-app
-.\start.bat
-```
+### Подключите ESP32 по USB
 
-В консоли увидите:
-```
-========================================
-  HTTP Server for ESP32
-========================================
-  ESP32 connect to: http://<YOUR_PC_IP>:8080/command
-  Or: http://localhost:8080/command
-========================================
+### Сборка
+```bash
+cargo build --release
 ```
 
-## Проверка работы
-
-### Через браузер (для теста):
-Откройте в браузере на ПК:
-```
-http://localhost:8080/command
-```
-Должно показать: `STOP`
-
-### Через Serial Monitor ESP32:
-В Arduino IDE → Serial Monitor (115200) вы должны видеть:
-```
-Command: STOP
-```
-Когда нажмете кнопку "Forward" в приложении, увидите:
-```
-Command: FORWARD
+### Загрузка
+```bash
+cargo run --release
 ```
 
-## Управление
+Или с esptool:
+```bash
+esptool.py --chip esp32 --port COM3 --baud 921600 write_flash 0x1000 target/riscv32imc-esp-espidf/release/esp32-robot-car.bin
+```
 
-### С компьютера:
-- **Стрелки** или **WASD** - движение
-- **Пробел** или **Escape** - стоп
-- Кнопки на экране
+## Использование Docker (альтернатива)
 
-### С ESP32:
-ESP32 автоматически опрашивает сервер каждые 100мс и выполняет команды:
-- `FORWARD` - вперед
-- `BACKWARD` - назад
-- `LEFT` - влево
-- `RIGHT` - вправо
-- `STOP` - стоп
+Если у вас есть Docker, можете использовать контейнер с уже настроенным окружением:
+
+```bash
+docker run --rm -v $PWD:/project -w /project -it --device /dev/ttyUSB0 espressif/idf-rust:latest
+```
+
+## Структура кода
+
+```
+esp32/
+├── src/
+│   └── main.rs          # Основной код
+├── Cargo.toml           # Зависимости
+├── build.rs             # Скрипт сборки
+├── .cargo/
+│   └── config.toml      # Конфигурация Rust для ESP
+└── README.md            # Этот файл
+```
+
+## Работа с PlatformIO
+
+Если предпочитаете PlatformIO:
+
+1. Установите VS Code + PlatformIO extension
+2. Создайте проект: PlatformIO → New Project
+3. Выберите: Board → ESP32, Framework → esp-idf
+4. Скопируйте `Cargo.toml` и `src/main.rs`
+5. Настройте `platformio.ini`:
+```ini
+[env:esp32dev]
+platform = espressif32
+board = esp32dev
+framework = espidf
+```
 
 ## Возможные проблемы
 
-### ESP32 не подключается к WiFi
+### WiFi не подключается
 - Проверьте имя и пароль сети
-- Убедитесь, что WiFi 2.4GHz (ESP32 не поддерживает 5GHz)
+- Убедитесь, что WiFi 2.4GHz
 
-### ESP32 не видит сервер
-- Проверьте IP адрес ПК
-- Проверьте firewall: Windows может блокировать порт 8080
-  - Разрешить в брандмауэре: `netsh advfirewall firewall add rule name="Robot Server" dir=in action=allow protocol=tcp localport=8080`
+### Не загружается на ESP32
+- Проверьте драйвер USB-UART
+- Выберите правильный COM порт
 
-### Моторы не работают
-- Проверьте подключение L298N
-- Проверьте питание (аккумулятор должен быть 7-12V)
-- Убедитесь, что ESP32 и L298N имеют общий GND
+### Ошибки компиляции
+```bash
+# Обновите espup
+cargo install espup
+espup install
+```
 
-## Альтернатива: PlatformIO
+## Ресурсы
 
-Если используете PlatformIO вместо Arduino IDE:
-
-1. Установите PlatformIO VSCode extension
-2. Создайте проект: PlatformIO → New Project → ESP32
-3. Скопируйте содержимое `.ino` файла в `src/main.cpp`
-4. Добавьте в `platformio.ini`:
-   ```ini
-   lib_deps = arduinojson
-   ```
-5. Загрузите: PlatformIO → Upload
-
-## Материалы
-
-- [ESP32 Arduino Core](https://github.com/espressif/arduino-esp32)
-- [L298N datasheet](https://www.sparkfun.com/datasheets/Robotics/L298_H_Bridge.pdf)
-- [WiFi библиотека ESP32](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/wifi.html)
+- [esp-rs книга](https://esp-rs.github.io/book/)
+- [esp-hal документация](https://docs.rs/esp-hal/latest/esp_hal/)
+- [Rust для ESP32 учебник](https://esp-rs.github.io/no_std-training/)
